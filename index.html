@@ -2486,7 +2486,7 @@ function render(){
     if(k==='date'){const m=new Map();ALLF.forEach(r=>{const w=wkStart(r.t);if(!m.has(w))m.set(w,[]);m.get(w).push(r)});W=[...m].sort((a,b)=>b[0]-a[0])}
     page();if($('#rcount'))$('#rcount').innerHTML=`${fmt(sum(L,'mi'))} mi shown <span style="opacity:.6">(rides over 5 mi)</span> · ${fmt(sum(ALLF,'mi'))} mi total`}
   function weekBlock(w,rs){const b=el('div','wk');b.dataset.wk=w;const e=new Date(w+6*DAY),s0=new Date(w);const sd=dT(s0),ed=dT(e),yy=s0.getFullYear()===e.getFullYear()?e.getFullYear():`${s0.getFullYear()}–${e.getFullYear()}`;
-    const head=el('div','wkhead');b.appendChild(head);head.appendChild(el('h4','wkh',`<span class="wkd">Week of ${sd}</span>`));const big=rs.filter(r=>r.mi>5).sort((a,c)=>c.t-a.t);
+    const head=el('div','wkhead');b.appendChild(head);head.appendChild(el('h4','wkh',`<span class="wkd">Week of ${sd}</span>`));const big=rs.filter(r=>r.mi>5).sort((a,c)=>c.mi-a.mi).slice(0,5).sort((a,c)=>c.t-a.t);
     const row=el('div','wkrow');const gg=el('div','cards');big.forEach(r=>gg.appendChild(card(r,{typed:true,glow:true})));
     const np=avgNP(rs);const tss=sum(rs,'TSS');const fAt=t=>{let v=null;for(const r of R){if(r.t>t)break;if(r.eftp)v=r.eftp}return v};const fN=fAt(w+7*DAY),fP=fAt(w),wk=fN&&fN/RKG,dW=fN&&fP?(fN-fP)/RKG:0;
     const ind=!wk?'':Math.abs(dW)<.005?'<span class="ftpd eq">–</span>':`<span class="ftpd ${dW>0?'up':'dn'}">${dW>0?'▲':'▼'} ${fmt(Math.abs(dW),2)}</span>`;
