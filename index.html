@@ -2091,6 +2091,10 @@ html.light nav.wm .wsub a,html.light nav.wm .wsm{opacity:1}
 #aboutview .ab-bt{display:flex;flex-wrap:wrap;gap:14px;margin:26px 0 34px}
 #aboutview .ab-bt a{display:inline-block;border:1px solid #f0e2c6;color:#f0e2c6;padding:13px 30px;font-size:10.96px;letter-spacing:.18em;text-transform:uppercase;text-decoration:none;transition:background .25s,color .25s}
 #aboutview .ab-bt a:hover{background:#f0e2c6;color:#0c0c0c}
+#about .ab-k b{font-size:20px!important}
+#about .ab-k div{padding:13px 14px 13px 0!important;gap:5px!important}
+#about .ab-k div:nth-child(even){padding-left:16px!important}
+#about .ab-kh{margin-top:30px!important}
 </style>
 </head>
 <body>
@@ -3587,8 +3591,6 @@ let _ab=false;function initAbout(){if(_ab)return;if(!R.length){setTimeout(initAb
   const L=[['Strava','strava.com/athletes/9732289','https://www.strava.com/athletes/9732289'],['Ride with GPS','ridewithgps.com','https://ridewithgps.com/'],['COROS','coros.com','https://www.coros.com/']];
   V.innerHTML=`<section id="about"><div class="ab"><div class="ab-ph"><img src="img/avatar.jpg" alt="Portrait of Andrew Ryan Shepherd" width="360" height="360"></div>
     <div class="ab-tx"><h2 class="sec-title mark">About</h2>
-      <p class="ab-lead">I’m Andrew. I ride in Austin, Texas.</p>
-      <p>This is my ride log: every ride, the bikes I ride and the parts I swap on them, and the photos I stop to take along the way.</p>
       <div class="ab-bt"><a class="caps" href="#gear">Gear</a><a class="caps" href="#races">Upcoming</a></div>
       <div class="ab-kh caps">On the bike</div><div class="ab-k caps">${(()=>{const L=ALLR.map(r=>fullLoc(r)).filter(Boolean).map(x=>x.split(',').map(t=>t.trim()));const cities=new Set(L.map(p=>p.join('|'))).size,countries=new Set(L.map(p=>p[p.length-1])).size;const AY=ALLR.map(r=>+r.date.slice(0,4));const yl=Math.max(...AY)-Math.min(...AY)+1;const mi=sum(ALLR,'mi'),ft=sum(ALLR,'ft');return [[fmt(mi),'Miles',`${(mi/24901).toFixed(2)}× around the Earth`],[fmt(ft),'Feet climbed',`${(ft/29032).toFixed(0)} Everests`],[fmt(ALLR.length),'Rides',`${fmt(sum(ALLR,'mt')/3600)} hours in the saddle`],[yl,'Years',`since ${Math.min(...AY)}`],[cities,'Cities',`${countries} countries`],['<i id="ab-bk">—</i>','Bikes','in the fleet']].map(([v,l,x])=>`<div><span>${l}</span><b>${v}</b><em>${x}</em></div>`).join('')})()}</div>
       <div class="ab-l">${L.map(([n,d,u])=>`<a class="caps" href="${u}" target="_blank" rel="noopener"><span>${n}</span><em>${d}</em>${AR}</a>`).join('')}</div></div></div></section>`;bikesData().then(D=>{const e=document.getElementById('ab-bk');if(e&&D)e.outerHTML=String((D.bikes||[]).filter(b=>!/peloton/i.test(b.name)).length)})}
