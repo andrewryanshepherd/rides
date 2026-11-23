@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Ride Log refresh: merge newly fetched trips into the site's data files.
+
+usage: python3 merge.py SITE_DIR PAYLOAD_JSON
+  SITE_DIR      folder holding data/rides.json and data/d/YYYY-MM.json (current published copies)
+  PAYLOAD_JSON  the JSON string returned by window.__arsRefresh (tools/proc.js), saved to a file
+Prints the list of changed files (paths relative to SITE_DIR), one per line, after a summary line.
+"""
+import json, os, sys
+
+def dec(s):
+    pts = []; idx = lat = lng = 0
+    while idx < len(s):
+        for k in (0, 1):
+            sh = r = 0
+            while True:
+                b = ord(s[idx]) - 63; idx += 1; r |= (b & 0x1f) << sh; sh += 5
+                if b < 0x20: break
+            v = ~(r >> 1) if r & 1 else r >> 1
+            if k == 0: lat += v
+            else: lng += v
+        pts.append((lat / 1e5, lng / 1e5))
+    return pts
+
+def _dp(pts, eps):
+    import math
+    keep = [False]*len(pts); keep[0] = keep[-1] = True; st = [(0, len(pts)-1)]
+    while st:
+        a, b = st.pop(); (y1, x1), (y2, x2) = pts[a], pts[b]; dx, dy = x2-x1, y2-y1; L = math.hypot(dx, dy) or 1e-12
+        best, bi = -1, -1
+        for i in range(a+1, b):
+            y, x = pts[i]; d = abs(dy*(x-x1) - dx*(y-y1))/L if L > 1e-12 else math.hypot(x-x1, y-y1)
+            if d > best: best, bi = d, i
+        if bi > 0 and best > eps: keep[bi] = True; st += [(a, bi), (bi, b)]
+    return [p for p, k in zip(pts, keep) if k]
+
+def simplify(pts, target=110):
+    """Douglas-Peucker to ~target points: keeps corners, so lines look smooth instead of jagged."""
+    if len(pts) <= target: return pts
+    lo, hi = 0.0, 0.05
+    for _ in range(22):
+        mid = (lo+hi)/2
+        if len(_dp(pts, mid)) > target: lo = mid
+        else: hi = mid
+    return _dp(pts, hi)
+
+def enc(pts):
+    out = []; pl = pg = 0
+    def e(v):
+        v = ~(v << 1) if v < 0 else v << 1; s = ''
+        while v >= 0x20: s += chr((0x20 | (v & 0x1f)) + 63); v >>= 5
+        return s + chr(v + 63)
+    for la, ln in pts:
+        a = round(la * 1e5); b = round(ln * 1e5); out.append(e(a - pl) + e(b - pg)); pl, pg = a, b
+    return ''.join(out)
+
+# Ride with GPS gear id -> bike id used on the page's Bikes tab
+RW_GEAR_TO_BIKE = {291687: '15377679'}  # Chumba Terlingua
+
+def is_ride(t):
+    sport = t.get('fit_sport'); spd = t.get('avg_speed') or 0
+    return sport == 2 or (sport is None and spd > 11)
+
+def is_date_name(n):
+    import re
+    return not n or re.match(r'^\d{1,2}/\d{1,2}/\d{2,4}$', n.strip())
+
+def to_ride(t):
+    r = t.get('res') or {}
+    sub = t.get('fit_sub_sport'); cat = t.get('activity_category_id'); stat = t.get('is_stationary')
+    typ = {7: 'Road', 8: 'Mountain', 46: 'Gravel'}.get(sub, 'Gravel' if cat == 8 else 'Ride')
+    if stat: typ = 'Indoor'
+    d = t['departed_at']; spd = t.get('avg_speed') or 0
+    pc = r.get('pc') or {}
+    np_ = r.get('np')
+    o = dict(id=t['id'], date=d[:16], mi=round((t.get('distance') or 0) / 1609.344, 2), mt=t.get('moving_time'), et=t.get('duration'),
+             ft=round((t.get('elevation_gain') or 0) * 3.28084), mph=round(spd * 0.621371, 1), mx=round((t.get('max_speed') or 0) * 0.621371, 1),
+             hr=t.get('avg_hr'), mhr=t.get('max_hr'), cad=t.get('avg_cad'),
+             w=round(t['avg_watts']) if np_ and t.get('avg_watts') else None, mw=round(t['max_watts']) if np_ and t.get('max_watts') else None,
+             cal=round(t['calories']) if t.get('calories') else None, np=np_, kj=r.get('kj'),
+             p5=pc.get('5'), p15=pc.get('15'), p30=pc.get('30'), p60=pc.get('60'), p300=pc.get('300'), p1200=pc.get('1200'), p3600=pc.get('3600'),
+             type=typ, src=(t.get('source_type') or '')[:1], loc=(t.get('locality') or '').replace('|', ' ').replace(',', ' '),
+             name='' if is_date_name(t.get('name')) else t['name'].replace('|', ' ').replace('\n', ' '))
+    for k in ('hr', 'mhr', 'cad'):
+        if o[k] is not None: o[k] = round(o[k])
+    if r.get('dpoly'):
+        o['poly'] = r['dpoly']  # full-detail route for every map
+    if t.get('gear_id') in RW_GEAR_TO_BIKE: o['bk'] = RW_GEAR_TO_BIKE[t['gear_id']]
+    return {k: v for k, v in o.items() if v not in (None, '')}
+
+def main(site, payload_path):
+    payload = json.load(open(payload_path))
+    if isinstance(payload, str): payload = json.loads(payload)
+    rp = os.path.join(site, 'data', 'rides.json')
+    rides = json.load(open(rp))
+    have = {r['id'] for r in rides}
+    changed = set(); added = 0; skipped = 0
+    for t in payload.get('trips', []):
+        if not is_ride(t) or t['id'] in have:
+            skipped += 1; continue
+        ride = to_ride(t); rides.append(ride); have.add(ride['id']); added += 1; changed.add('data/rides.json')
+        res = t.get('res') or {}
+        if res.get('det') or res.get('dpoly'):
+            m = ride['date'][:7]; mp = os.path.join(site, 'data', 'd', f'{m}.json')
+            mo = json.load(open(mp)) if os.path.exists(mp) else {}
+            mo[str(ride['id'])] = {'p': res.get('dpoly'), 's': res.get('det')}
+            os.makedirs(os.path.dirname(mp), exist_ok=True)
+            json.dump(mo, open(mp, 'w'), separators=(',', ':')); changed.add(f'data/d/{m}.json')
+    rides.sort(key=lambda x: x['date'])
+    json.dump(rides, open(rp, 'w'), separators=(',', ':'))
+    print(f'added {added} rides, skipped {skipped} (non-rides or already present); total {len(rides)}')
+    for c in sorted(changed): print(c)
+
+if __name__ == '__main__':
+    main(sys.argv[1], sys.argv[2])
