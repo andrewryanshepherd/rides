@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script>/* big-screen scaling: above 1600px wide the whole page scales up (to 2x max), keeping its proportions */
+<script>/* wide screens: above 1600px the page stops growing and centers; --z keeps vw-based sizes at their 1600px values */
 (function(){var D=document.documentElement,pd=Object.getOwnPropertyDescriptor(Window.prototype,"devicePixelRatio")||Object.getOwnPropertyDescriptor(window,"devicePixelRatio"),Z=1;
-function f(){var w=window.innerWidth;Z=w>1600?Math.min(2,w/1600):1;D.style.zoom=Z===1?"":String(Z);D.style.setProperty("--z",String(Z));window.__Z=Z}
+function f(){var w=window.innerWidth;Z=1;D.style.zoom="";D.style.setProperty("--z",String(w>1600?w/1600:1));window.__Z=1}
 try{if(pd&&pd.get)Object.defineProperty(window,"devicePixelRatio",{configurable:true,get:function(){return pd.get.call(window)*Z}})}catch(e){}
 f();window.addEventListener("resize",f)})();</script>
 
@@ -2107,6 +2107,9 @@ html.light nav.wm .wsub a,html.light nav.wm .wsm{opacity:1}
 #about .ab-l a em{display:none!important}
 #about .ab-l a{display:flex!important;justify-content:space-between;align-items:center}
 @media(min-width:861px){#about .ab-k{flex:none!important;grid-auto-rows:auto!important}}
+</style>
+<style>/* lock the layout at 1600px on wide screens */
+@media(min-width:1601px){body{max-width:1600px;margin-left:auto!important;margin-right:auto!important;position:relative}.srail{left:calc((100vw - 1600px)/2 + 24px)!important}#detail{padding-left:calc((100vw - 1600px)/2)!important;padding-right:calc((100vw - 1600px)/2)!important;box-sizing:border-box}}
 </style>
 </head>
 <body>
